@@ -1,12 +1,11 @@
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import config
 from rag.chunker import chunk_documents
-from rag.generator import Generator
 from rag.indexer import Indexer
 from rag.loader import load_documents
-from rag.retriever import Retriever
+from rag.retriever import Retriever, RetrievedChunk
 
 
 class RAGPipeline:
@@ -23,7 +22,6 @@ class RAGPipeline:
             embedding_model=config.EMBEDDING_MODEL,
         )
         self._retriever = Retriever(self._indexer, top_k=config.TOP_K)
-        self._generator = Generator()
 
     def ingest(self, *, reset: bool = False) -> dict:
         documents = load_documents(self.docs_path)
@@ -39,21 +37,8 @@ class RAGPipeline:
             "sources": [d.source for d in documents],
         }
 
-    def query(self, question: str) -> dict:
-        chunks = self._retriever.retrieve(question)
-        answer = self._generator.generate(question, chunks)
-        return {
-            "question": question,
-            "answer": answer,
-            "sources": [
-                {
-                    "source": c.source,
-                    "chunk_index": c.chunk_index,
-                    "score": round(c.score, 4),
-                }
-                for c in chunks
-            ],
-        }
+    def retrieve(self, question: str) -> List[RetrievedChunk]:
+        return self._retriever.retrieve(question)
 
     @property
     def chunk_count(self) -> int:
