@@ -13,13 +13,28 @@ from rag.loader import load_documents
 from rag.pipeline import RAGPipeline
 # Probe queries mapped to expected source documents (for retrieval accuracy checks)
 PROBE_QUERIES = [
+    # Clear, unambiguous — any model should get these right
     ("What is data minimization?", "privacy_principles.txt"),
     ("How does encryption protect data at rest?", "encryption_guide.txt"),
     ("What is a membership inference attack?", "privacy_attacks.txt"),
     ("What rights do users have over their data?", "user_privacy_rights.txt"),
     ("What does HIPAA require for PHI?", "hipaa_privacy_rule.txt"),
     ("What is privacy by design?", "privacy_by_design.txt"),
-    ("What is the right to erasure under GDPR?", "gdpr_overview.txt"),
+    ("What is the right to erasure under GDPR?", "user_privacy_rights.txt"),
+    # Overlapping topics — harder, better models should win here
+    ("How long should patient health records be retained?", "hipaa_privacy_rule.txt"),
+    ("What is TLS and why is it used for data in transit?", "encryption_guide.txt"),
+    ("How can anonymized data be re-identified?", "privacy_attacks.txt"),
+    ("Should privacy settings default to most or least restrictive?", "privacy_by_design.txt"),
+    ("What data can be collected under the purpose limitation principle?", "privacy_principles.txt"),
+    ("Can a patient request a copy of their medical records?", "hipaa_privacy_rule.txt"),
+    ("What is end-to-end encryption and when should it be used?", "encryption_guide.txt"),
+    ("What 18 identifiers must be removed to de-identify health data?", "hipaa_privacy_rule.txt"),
+    ("What are side channel attacks?", "privacy_attacks.txt"),
+    ("How should encryption keys be managed and rotated?", "encryption_guide.txt"),
+    ("Can users export their data in machine-readable format?", "user_privacy_rights.txt"),
+    ("What does proactive privacy mean in system design?", "privacy_by_design.txt"),
+    ("How does differential privacy protect individual records?", "privacy_attacks.txt"),
 ]
 
 
@@ -83,27 +98,30 @@ def analyze_index(chunks: list[Chunk]) -> IndexStats:
     )
 
 
+def make_probe(query: str, expected: str, chunks) -> RetrievalProbe:
+    """Build a RetrievalProbe from already-retrieved chunks.
+
+    Shared by analyze_retrieval() and benchmark_models.evaluate() so the
+    hit@1 / hit@k logic lives in exactly one place.
+    """
+    sources = [c.source for c in chunks]
+    scores = [round(c.score, 4) for c in chunks]
+    return RetrievalProbe(
+        query=query,
+        expected_source=expected,
+        top_source=sources[0] if sources else "",
+        top_score=scores[0] if scores else 0.0,
+        hit_at_1=expected in sources[:1],
+        hit_at_k=expected in sources,
+        retrieved_sources=sources,
+        scores=scores,
+    )
+
+
 def analyze_retrieval(
     pipeline: RAGPipeline, probes: list[tuple[str, str]]
 ) -> list[RetrievalProbe]:
-    results: list[RetrievalProbe] = []
-    for query, expected in probes:
-        chunks = pipeline.retrieve(query)
-        sources = [c.source for c in chunks]
-        scores = [round(c.score, 4) for c in chunks]
-        results.append(
-            RetrievalProbe(
-                query=query,
-                expected_source=expected,
-                top_source=sources[0] if sources else "",
-                top_score=scores[0] if scores else 0.0,
-                hit_at_1=expected in sources[:1],
-                hit_at_k=expected in sources,
-                retrieved_sources=sources,
-                scores=scores,
-            )
-        )
-    return results
+    return [make_probe(q, e, pipeline.retrieve(q)) for q, e in probes]
 
 
 def analyze_privacy_exposure(

@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-DOCS_PATH = Path(os.getenv("DOCS_PATH", "/Users/ajaymuppuri/rag_documents"))
+DOCS_PATH = Path(os.getenv("DOCS_PATH", str(Path.home() / "rag_documents")))
 CHROMA_PATH = PROJECT_ROOT / os.getenv("CHROMA_PATH", "data/chroma")
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "privacy_docs")
 

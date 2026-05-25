@@ -23,7 +23,6 @@ class Retriever:
             n_results=self._top_k,
             include=["documents", "metadatas", "distances"],
         )
-
         chunks: list[RetrievedChunk] = []
         if not results["documents"] or not results["documents"][0]:
             return chunks

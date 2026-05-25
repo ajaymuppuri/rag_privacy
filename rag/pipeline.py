@@ -13,15 +13,25 @@ class RAGPipeline:
         self,
         docs_path: Optional[Path] = None,
         chroma_path: Optional[Path] = None,
+        collection_name: Optional[str] = None,
+        embedding_model: Optional[str] = None,
+        top_k: Optional[int] = None,
     ):
         self.docs_path = docs_path or config.DOCS_PATH
         self.chroma_path = chroma_path or config.CHROMA_PATH
+        self.collection_name = collection_name or config.COLLECTION_NAME
+        self.embedding_model = embedding_model or config.EMBEDDING_MODEL
         self._indexer = Indexer(
             chroma_path=self.chroma_path,
-            collection_name=config.COLLECTION_NAME,
-            embedding_model=config.EMBEDDING_MODEL,
+            collection_name=self.collection_name,
+            embedding_model=self.embedding_model,
         )
-        self._retriever = Retriever(self._indexer, top_k=config.TOP_K)
+        self._retriever = Retriever(self._indexer, top_k=top_k or config.TOP_K)
+
+    @property
+    def indexer(self) -> Indexer:
+        """Expose the underlying Indexer for callers that need raw vector access."""
+        return self._indexer
 
     def ingest(self, *, reset: bool = False) -> dict:
         documents = load_documents(self.docs_path)
